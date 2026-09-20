@@ -31,7 +31,13 @@
         <div class="field">
           <label>בחרו קטגוריה</label>
           <div class="category-picker" id="category-picker"></div>
-          <button type="button" id="btn-open-custom-builder" class="btn btn-secondary btn-custom-trigger">🖼️ העלו תמונות משלכם כקטגוריה</button>
+          <button type="button" id="btn-refresh-folders-start" class="btn btn-secondary btn-custom-trigger">🔄 רענן קטגוריות מהתיקייה</button>
+          <button type="button" id="btn-open-custom-builder" class="btn btn-secondary btn-custom-trigger">🖼️ העלאה זמנית מהדפדפן</button>
+          <p class="hint-text">
+            רוצים קטגוריה שנשמרת לצמיתות? העלו תמונות לתיקיית
+            <code>images/&lt;שם-קטגוריה&gt;</code> בריפו ב-GitHub ואז לחצו "רענן
+            קטגוריות". העלאה מהדפדפן זמנית בלבד ונעלמת ברענון הדף.
+          </p>
         </div>
 
         <button type="submit" class="btn btn-primary btn-start">התחל משחק</button>
@@ -102,7 +108,8 @@
       <button id="btn-miss" class="btn btn-danger">🙅 לא ידע / העבר תור</button>
       <button id="btn-reveal" class="btn btn-secondary">👁️ הצג תשובה</button>
       <button id="btn-next" class="btn btn-secondary">⏭️ תמונה הבאה</button>
-      <button id="btn-manage-custom" class="btn btn-secondary">🖼️ נהל תמונות</button>
+      <button id="btn-manage-custom" class="btn btn-secondary">🖼️ העלאה זמנית</button>
+      <button id="btn-refresh-folders-game" class="btn btn-secondary">🔄 רענן קטגוריות</button>
       <select id="category-select" class="category-select"></select>
       <button id="btn-reset" class="btn btn-danger">⟲ איפוס משחק</button>
     </footer>
@@ -125,6 +132,7 @@
         <label for="custom-image-upload">העלאת תמונות (אפשר לבחור כמה יחד)</label>
         <input type="file" id="custom-image-upload" accept="image/*" multiple />
         <p class="hint-text">לכל תמונה יש לרשום מה (או מי) מופיע בה. נדרשות לפחות 2 תמונות עם תשובה.</p>
+        <p class="hint-text warning-text">⚠️ העלאה כאן זמנית בלבד ונעלמת ברענון הדף. לשמירה לצמיתות - העלו את התמונות לתיקיית <code>images/</code> בריפו ב-GitHub.</p>
       </div>
 
       <div id="custom-items-list" class="custom-items-list"></div>

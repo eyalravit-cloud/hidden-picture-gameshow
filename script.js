@@ -89,6 +89,10 @@
 
   const MAX_MISSES = 2;
 
+  /* ---------------- הגדרות לטעינת קטגוריות מתיקיית images/ בריפו ---------------- */
+  const REMOTE_REPO = { owner: 'eyalravit-cloud', repo: 'hidden-picture-gameshow', branch: 'main', imagesPath: 'images' };
+  const IMAGE_EXT_REGEX = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+
   /* ---------------- מצב המשחק ---------------- */
   const state = {
     players: [
@@ -152,6 +156,8 @@
     btnNext: document.getElementById('btn-next'),
     btnManageCustom: document.getElementById('btn-manage-custom'),
     btnReset: document.getElementById('btn-reset'),
+    btnRefreshFoldersStart: document.getElementById('btn-refresh-folders-start'),
+    btnRefreshFoldersGame: document.getElementById('btn-refresh-folders-game'),
 
     btnOpenCustomBuilder: document.getElementById('btn-open-custom-builder'),
     customModal: document.getElementById('custom-builder-modal'),
@@ -208,6 +214,65 @@
   function isGameRunning() {
     return !el.gameScreen.classList.contains('hidden');
   }
+
+  /* =============================================================
+     קטגוריות שנטענות מהתיקייה images/ בריפו ב-GitHub (קבועות)
+     כל תת-תיקייה = קטגוריה. שם הקובץ (בלי סיומת) = התשובה הנכונה.
+  ============================================================= */
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+    if (!res.ok) throw new Error(`GitHub API error ${res.status} for ${url}`);
+    return res.json();
+  }
+
+  async function loadFolderCategories() {
+    const base = `https://api.github.com/repos/${REMOTE_REPO.owner}/${REMOTE_REPO.repo}/contents/${REMOTE_REPO.imagesPath}`;
+
+    // מנקים קטגוריות תיקייה קודמות (למקרה שתיקייה נמחקה בינתיים).
+    Object.keys(CATEGORIES).forEach((key) => {
+      if (key.startsWith('folder:')) delete CATEGORIES[key];
+    });
+
+    let dirs = [];
+    try {
+      const rootEntries = await fetchJson(`${base}?ref=${REMOTE_REPO.branch}`);
+      dirs = Array.isArray(rootEntries) ? rootEntries.filter((e) => e.type === 'dir') : [];
+    } catch (err) {
+      console.warn('לא ניתן היה לטעון קטגוריות מהתיקייה images/:', err);
+    }
+
+    await Promise.all(
+      dirs.map(async (dir) => {
+        try {
+          const files = await fetchJson(`${base}/${encodeURIComponent(dir.name)}?ref=${REMOTE_REPO.branch}`);
+          const items = (Array.isArray(files) ? files : [])
+            .filter((f) => f.type === 'file' && IMAGE_EXT_REGEX.test(f.name))
+            .map((f) => ({
+              imageUrl: f.download_url,
+              answer: f.name.replace(IMAGE_EXT_REGEX, '').replace(/[-_]+/g, ' ').trim(),
+            }))
+            .filter((it) => it.answer);
+
+          if (items.length >= 2) {
+            CATEGORIES[`folder:${dir.name}`] = { name: dir.name, emoji: '📁', items };
+          }
+        } catch (err) {
+          console.warn(`לא ניתן היה לטעון את תיקיית הקטגוריה "${dir.name}":`, err);
+        }
+      })
+    );
+
+    buildCategoryPicker();
+    if (isGameRunning()) {
+      const prevValue = el.categorySelect.value;
+      buildCategorySelect();
+      if (CATEGORIES[prevValue]) el.categorySelect.value = prevValue;
+    }
+  }
+
+  el.btnRefreshFoldersStart?.addEventListener('click', () => loadFolderCategories());
+  el.btnRefreshFoldersGame?.addEventListener('click', () => loadFolderCategories());
 
   /** מסנכרן את CATEGORIES.custom עם state.customItems הנוכחי. */
   function refreshCustomCategory() {
@@ -549,4 +614,5 @@
 
   /* ---------------- אתחול ---------------- */
   buildCategoryPicker();
+  loadFolderCategories();
 })();

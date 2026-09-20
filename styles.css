@@ -277,6 +277,17 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
   margin: 0.5rem 0 0;
 }
 
+.hint-text.warning-text {
+  color: var(--neon-gold);
+}
+
+.hint-text code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
 .custom-items-list {
   display: flex;
   flex-direction: column;
