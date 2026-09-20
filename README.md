@@ -1,32 +1,34 @@
-# Hidden Picture Gameshow
+# דו-קרב הניחושים
 
-A self-contained, TV-studio-styled "Hidden Picture" gameshow app built with
-plain HTML, CSS, and vanilla JavaScript — no build step, no dependencies.
+משחק גיישואו בעברית בסגנון "TV Studio" - שני מתמודדים מתחרים בניחוש מה
+מסתתר מאחורי אמוג'י גדול, לפי קטגוריה שנבחרת מראש (פירות / חיות / כלי
+רכב / דגלים). נבנה עם HTML, CSS ו-JavaScript טהור, ללא תלויות חיצוניות
+וללא build step.
 
-## Run it
+## איך מריצים
 
-Just open `index.html` in a browser, or serve the folder:
+פותחים את `index.html` בדפדפן, או מריצים שרת סטטי:
 
 ```
 npx serve hidden-picture-gameshow
 ```
 
-## Features
+## חוקי המשחק
 
-- Start screen to enter Player 1 / Player 2 names, upload an image (or paste
-  a URL), and choose a 4×4 or 5×5 grid.
-- TV-shaped game board with glassmorphism scoreboards, neon glow accents,
-  and a scanline/vignette overlay for a broadcast feel.
-- Click a tile to reveal the picture underneath with a 3D scale/rotate
-  animation.
-- Score buttons (+/-) per player with a bounce animation on change.
-- Host controls: **Reveal All** (cascading reveal of remaining tiles),
-  **Next Round** (reset grid + upload a new image, keep scores/names), and
-  **Reset Game** (return to start screen, clear everything).
-- Fully responsive layout for desktop and tablet.
+1. בוחרים שמות לשני המתמודדים וקטגוריה (פירות/חיות/כלי רכב/דגלים).
+2. בכל סיבוב מוצג פריט אקראי מהקטגוריה, ויש תור למתמודד אחד.
+3. המנחה שופט את הניחוש בעל-פה ולוחץ:
+   - **✅ ניחוש נכון** - נקודה למתמודד שבתורו, מעבר לסיבוב הבא.
+   - **🙅 לא ידע / העבר תור** - התור עובר למתמודד השני. זו "פסילה"
+     עבור המתמודד הנוכחי.
+4. אם אותו מתמודד נכשל פעמיים באותו סיבוב - הוא "מפסיד" את הסיבוב,
+   הנקודה עוברת אוטומטית ליריב, והתשובה מוצגת.
+5. אפשר גם: **👁️ הצג תשובה** (חשיפה ידנית), **⏭️ תמונה הבאה** (דילוג
+   סיבוב ללא ניקוד), החלפת קטגוריה תוך כדי משחק, וכפתורי +/- ידניים
+   לניקוד. **⟲ איפוס משחק** מחזיר למסך הפתיחה.
 
-## Files
+## קבצים
 
-- `index.html` — markup for the start screen and game screen.
-- `styles.css` — all styling, animations, and responsive rules.
-- `script.js` — game state, tile grid generation, scoring, and controls.
+- `index.html` - מבנה מסך הפתיחה ומסך המשחק (RTL, עברית).
+- `styles.css` - כל העיצוב, האנימציות והרספונסיביות.
+- `script.js` - מאגר הקטגוריות, לוגיקת התורות והניקוד.

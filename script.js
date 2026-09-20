@@ -1,23 +1,110 @@
 /* =============================================================
-   Hidden Picture Gameshow — Game Logic
-   Vanilla JS, modular, no external dependencies.
+   דו-קרב הניחושים — לוגיקת המשחק
+   Vanilla JS ללא תלויות חיצוניות.
+
+   מנגנון המשחק:
+   - כל סיבוב מציג פריט אחד (אמוג'י גדול) מתוך הקטגוריה שנבחרה.
+   - יש תור למתמודד אחד. אם הוא מנחש נכון (המנחה לוחץ "ניחוש נכון")
+     הוא מקבל נקודה והסיבוב מסתיים.
+   - אם הוא לא ידע / טעה (המנחה לוחץ "לא ידע / העבר תור") - התור
+     עובר למתמודד השני, וזה נרשם כ"פסילה" עבורו באותו סיבוב.
+   - אם אותו מתמודד נכשל פעמיים באותו סיבוב - הוא "מפסיד" את הסיבוב,
+     היריב מקבל את הנקודה באופן אוטומטי, והתשובה מוצגת.
 ============================================================= */
 
 (() => {
   'use strict';
 
-  /* ---------------- State ---------------- */
-  const state = {
-    players: [
-      { name: 'Player 1', score: 0 },
-      { name: 'Player 2', score: 0 },
-    ],
-    imageUrl: null,
-    gridSize: 5,
-    revealedCount: 0,
+  /* ---------------- מאגר קטגוריות (אמוג'י + תשובה בעברית) ---------------- */
+  const CATEGORIES = {
+    fruits: {
+      name: 'פירות',
+      emoji: '🍎',
+      items: [
+        { emoji: '🍎', answer: 'תפוח' },
+        { emoji: '🍌', answer: 'בננה' },
+        { emoji: '🍇', answer: 'ענבים' },
+        { emoji: '🍉', answer: 'אבטיח' },
+        { emoji: '🍊', answer: 'תפוז' },
+        { emoji: '🍓', answer: 'תות' },
+        { emoji: '🍍', answer: 'אננס' },
+        { emoji: '🍒', answer: 'דובדבן' },
+        { emoji: '🍑', answer: 'אפרסק' },
+        { emoji: '🍋', answer: 'לימון' },
+        { emoji: '🥝', answer: 'קיווי' },
+        { emoji: '🥭', answer: 'מנגו' },
+      ],
+    },
+    animals: {
+      name: 'חיות',
+      emoji: '🐶',
+      items: [
+        { emoji: '🐶', answer: 'כלב' },
+        { emoji: '🐱', answer: 'חתול' },
+        { emoji: '🦁', answer: 'אריה' },
+        { emoji: '🐘', answer: 'פיל' },
+        { emoji: '🦒', answer: 'ג\'ירפה' },
+        { emoji: '🐒', answer: 'קוף' },
+        { emoji: '🦓', answer: 'זברה' },
+        { emoji: '🐧', answer: 'פינגווין' },
+        { emoji: '🐻', answer: 'דוב' },
+        { emoji: '🐰', answer: 'ארנב' },
+        { emoji: '🐴', answer: 'סוס' },
+        { emoji: '🐸', answer: 'צפרדע' },
+      ],
+    },
+    cars: {
+      name: 'כלי רכב',
+      emoji: '🚗',
+      items: [
+        { emoji: '🚗', answer: 'מכונית' },
+        { emoji: '🚕', answer: 'מונית' },
+        { emoji: '🚓', answer: 'ניידת משטרה' },
+        { emoji: '🚑', answer: 'אמבולנס' },
+        { emoji: '🚚', answer: 'משאית' },
+        { emoji: '🚌', answer: 'אוטובוס' },
+        { emoji: '🚜', answer: 'טרקטור' },
+        { emoji: '🏍️', answer: 'אופנוע' },
+        { emoji: '🚒', answer: 'מכבי אש' },
+        { emoji: '🏎️', answer: 'מכונית מירוץ' },
+      ],
+    },
+    flags: {
+      name: 'דגלים',
+      emoji: '🏳️',
+      items: [
+        { emoji: '🇮🇱', answer: 'ישראל' },
+        { emoji: '🇺🇸', answer: 'ארצות הברית' },
+        { emoji: '🇫🇷', answer: 'צרפת' },
+        { emoji: '🇯🇵', answer: 'יפן' },
+        { emoji: '🇧🇷', answer: 'ברזיל' },
+        { emoji: '🇮🇹', answer: 'איטליה' },
+        { emoji: '🇪🇸', answer: 'ספרד' },
+        { emoji: '🇬🇧', answer: 'בריטניה' },
+        { emoji: '🇩🇪', answer: 'גרמניה' },
+        { emoji: '🇨🇦', answer: 'קנדה' },
+      ],
+    },
   };
 
-  /* ---------------- DOM references ---------------- */
+  const MAX_MISSES = 2;
+
+  /* ---------------- מצב המשחק ---------------- */
+  const state = {
+    players: [
+      { name: 'מתמודד 1', score: 0 },
+      { name: 'מתמודד 2', score: 0 },
+    ],
+    categoryKey: 'fruits',
+    currentItem: null,
+    previousItem: null,
+    turnIndex: 0,      // 0 = מתמודד 1, 1 = מתמודד 2
+    misses: [0, 0],    // פסילות בסיבוב הנוכחי לכל שחקן
+    roundCount: 0,
+    roundLocked: false, // חוסם פעולות בזמן הצגת הבאנר בין סיבובים
+  };
+
+  /* ---------------- הפניות DOM ---------------- */
   const el = {
     startScreen: document.getElementById('start-screen'),
     gameScreen: document.getElementById('game-screen'),
@@ -26,90 +113,100 @@
 
     player1Input: document.getElementById('player1-name'),
     player2Input: document.getElementById('player2-name'),
-    imageUpload: document.getElementById('image-upload'),
-    imageUrlInput: document.getElementById('image-url'),
-    gridSizeSelect: document.getElementById('grid-size'),
-    imagePreviewWrap: document.getElementById('image-preview-wrap'),
-    imagePreview: document.getElementById('image-preview'),
+    categoryPicker: document.getElementById('category-picker'),
 
-    scoreName1: document.getElementById('score-name-1'),
-    scoreName2: document.getElementById('score-name-2'),
-    scoreValue1: document.getElementById('score-value-1'),
-    scoreValue2: document.getElementById('score-value-2'),
+    categoryBadge: document.getElementById('category-badge'),
+    categorySelect: document.getElementById('category-select'),
 
-    hiddenImage: document.getElementById('hidden-image'),
-    tileGrid: document.getElementById('tile-grid'),
+    scoreboards: [
+      document.getElementById('scoreboard-1'),
+      document.getElementById('scoreboard-2'),
+    ],
+    scoreNames: [
+      document.getElementById('score-name-1'),
+      document.getElementById('score-name-2'),
+    ],
+    scoreValues: [
+      document.getElementById('score-value-1'),
+      document.getElementById('score-value-2'),
+    ],
+    missDots: [
+      document.getElementById('miss-dots-1'),
+      document.getElementById('miss-dots-2'),
+    ],
+    turnFlags: [
+      document.getElementById('turn-flag-1'),
+      document.getElementById('turn-flag-2'),
+    ],
 
+    itemEmoji: document.getElementById('item-emoji'),
+    itemAnswer: document.getElementById('item-answer'),
+    roundBanner: document.getElementById('round-banner'),
+
+    btnCorrect: document.getElementById('btn-correct'),
+    btnMiss: document.getElementById('btn-miss'),
     btnReveal: document.getElementById('btn-reveal'),
-    btnNextRound: document.getElementById('btn-next-round'),
+    btnNext: document.getElementById('btn-next'),
     btnReset: document.getElementById('btn-reset'),
-    nextRoundUpload: document.getElementById('next-round-upload'),
   };
 
-  /* ---------------- Helpers ---------------- */
+  let selectedCategoryKey = 'fruits';
 
-  /** Reads a File object and resolves with an object URL / data URL. */
-  function readImageFile(file) {
-    return new Promise((resolve, reject) => {
-      if (!file) return reject(new Error('No file provided'));
-      try {
-        const url = URL.createObjectURL(file);
-        resolve(url);
-      } catch (err) {
-        reject(err);
-      }
+  /* ---------------- בניית בורר הקטגוריות במסך הפתיחה ---------------- */
+  function buildCategoryPicker() {
+    el.categoryPicker.innerHTML = '';
+    Object.entries(CATEGORIES).forEach(([key, cat]) => {
+      const option = document.createElement('div');
+      option.className = 'category-option';
+      option.dataset.key = key;
+      if (key === selectedCategoryKey) option.classList.add('selected');
+      option.innerHTML = `<span class="cat-emoji">${cat.emoji}</span><span>${cat.name}</span>`;
+      option.addEventListener('click', () => {
+        selectedCategoryKey = key;
+        [...el.categoryPicker.children].forEach((c) => c.classList.remove('selected'));
+        option.classList.add('selected');
+      });
+      el.categoryPicker.appendChild(option);
     });
   }
 
+  /* ---------------- בניית בורר הקטגוריות בפאנל המנחה ---------------- */
+  function buildCategorySelect() {
+    el.categorySelect.innerHTML = '';
+    Object.entries(CATEGORIES).forEach(([key, cat]) => {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = `${cat.emoji} ${cat.name}`;
+      el.categorySelect.appendChild(opt);
+    });
+  }
+
+  el.categorySelect?.addEventListener('change', () => {
+    state.categoryKey = el.categorySelect.value;
+    state.previousItem = null;
+    el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES[state.categoryKey].name}`;
+    startNewRound({ resetTurn: false });
+  });
+
+  /* ---------------- טופס ההתחלה ---------------- */
   function showError(message) {
     el.startError.textContent = message;
     el.startError.classList.remove('hidden');
   }
-
   function clearError() {
     el.startError.textContent = '';
     el.startError.classList.add('hidden');
   }
 
-  /* ---------------- Start screen: image preview ---------------- */
-
-  el.imageUpload.addEventListener('change', async () => {
-    const file = el.imageUpload.files && el.imageUpload.files[0];
-    if (!file) return;
-    el.imageUrlInput.value = '';
-    try {
-      const url = await readImageFile(file);
-      state.imageUrl = url;
-      el.imagePreview.src = url;
-      el.imagePreviewWrap.classList.remove('hidden');
-      clearError();
-    } catch (err) {
-      showError('Could not read that image file.');
-    }
-  });
-
-  el.imageUrlInput.addEventListener('input', () => {
-    const url = el.imageUrlInput.value.trim();
-    if (!url) return;
-    el.imageUpload.value = '';
-    state.imageUrl = url;
-    el.imagePreview.src = url;
-    el.imagePreviewWrap.classList.remove('hidden');
-    clearError();
-  });
-
-  /* ---------------- Start form submit ---------------- */
-
   el.startForm.addEventListener('submit', (event) => {
     event.preventDefault();
     clearError();
 
-    const name1 = el.player1Input.value.trim() || 'Player 1';
-    const name2 = el.player2Input.value.trim() || 'Player 2';
-    const gridSize = parseInt(el.gridSizeSelect.value, 10) || 5;
+    const name1 = el.player1Input.value.trim() || 'מתמודד 1';
+    const name2 = el.player2Input.value.trim() || 'מתמודד 2';
 
-    if (!state.imageUrl) {
-      showError('Please upload an image or paste an image URL to hide.');
+    if (!selectedCategoryKey || !CATEGORIES[selectedCategoryKey]) {
+      showError('נא לבחור קטגוריה כדי להתחיל.');
       return;
     }
 
@@ -117,69 +214,70 @@
     state.players[1].name = name2;
     state.players[0].score = 0;
     state.players[1].score = 0;
-    state.gridSize = gridSize;
+    state.categoryKey = selectedCategoryKey;
+    state.roundCount = 0;
+    state.previousItem = null;
 
     startGame();
   });
 
-  /* ---------------- Game start / transition ---------------- */
-
+  /* ---------------- מעבר למסך המשחק ---------------- */
   function startGame() {
-    el.scoreName1.textContent = state.players[0].name;
-    el.scoreName2.textContent = state.players[1].name;
+    el.scoreNames[0].textContent = state.players[0].name;
+    el.scoreNames[1].textContent = state.players[1].name;
+    updateScoreDisplay(0, false);
     updateScoreDisplay(1, false);
-    updateScoreDisplay(2, false);
 
-    el.hiddenImage.src = state.imageUrl;
+    buildCategorySelect();
+    el.categorySelect.value = state.categoryKey;
+    el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES[state.categoryKey].name}`;
 
-    buildGrid(state.gridSize);
+    startNewRound({ resetTurn: true });
 
     el.startScreen.classList.add('hidden');
     el.gameScreen.classList.remove('hidden');
   }
 
-  /* ---------------- Grid building & tile reveal ---------------- */
+  /* ---------------- בחירת פריט אקראי מהקטגוריה (ללא חזרה מיידית) ---------------- */
+  function pickRandomItem() {
+    const items = CATEGORIES[state.categoryKey].items;
+    if (items.length === 1) return items[0];
+    let candidate;
+    do {
+      candidate = items[Math.floor(Math.random() * items.length)];
+    } while (state.previousItem && candidate.answer === state.previousItem.answer);
+    return candidate;
+  }
 
-  function buildGrid(size) {
-    el.tileGrid.innerHTML = '';
-    el.tileGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-    el.tileGrid.style.gridTemplateRows = `repeat(${size}, 1fr)`;
-    state.revealedCount = 0;
+  /* ---------------- התחלת סיבוב חדש ---------------- */
+  function startNewRound({ resetTurn }) {
+    state.roundLocked = false;
+    state.misses = [0, 0];
+    state.currentItem = pickRandomItem();
+    state.previousItem = state.currentItem;
 
-    const totalTiles = size * size;
-    for (let i = 0; i < totalTiles; i++) {
-      const tile = document.createElement('div');
-      tile.className = 'tile';
-      tile.dataset.index = String(i);
-      tile.dataset.number = String(i + 1);
-      tile.addEventListener('click', () => revealTile(tile));
-      el.tileGrid.appendChild(tile);
+    if (resetTurn) {
+      state.turnIndex = state.roundCount % 2; // כל סיבוב מתחיל עם מתמודד אחר
     }
+    state.roundCount += 1;
+
+    el.itemEmoji.textContent = state.currentItem.emoji;
+    el.itemAnswer.textContent = '';
+    el.itemAnswer.classList.add('hidden');
+    el.roundBanner.classList.add('hidden');
+    el.roundBanner.className = 'round-banner hidden';
+
+    renderMissDots();
+    renderTurnHighlight();
+    setControlsEnabled(true);
   }
 
-  function revealTile(tile) {
-    if (tile.classList.contains('revealed')) return;
-    tile.classList.add('revealed');
-    state.revealedCount += 1;
-  }
-
-  function revealAllTiles() {
-    const tiles = el.tileGrid.querySelectorAll('.tile:not(.revealed)');
-    tiles.forEach((tile, i) => {
-      // Slight stagger for a nicer cascading reveal effect.
-      setTimeout(() => revealTile(tile), i * 25);
-    });
-  }
-
-  /* ---------------- Scoreboard ---------------- */
-
-  function updateScoreDisplay(playerNum, animate = true) {
-    const valueEl = playerNum === 1 ? el.scoreValue1 : el.scoreValue2;
-    const score = state.players[playerNum - 1].score;
-    valueEl.textContent = String(score);
+  /* ---------------- תצוגת ניקוד ---------------- */
+  function updateScoreDisplay(playerIdx, animate = true) {
+    const valueEl = el.scoreValues[playerIdx];
+    valueEl.textContent = String(state.players[playerIdx].score);
     if (animate) {
       valueEl.classList.remove('bump');
-      // Force reflow so the animation can retrigger.
       void valueEl.offsetWidth;
       valueEl.classList.add('bump');
     }
@@ -187,51 +285,114 @@
 
   document.querySelectorAll('.score-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const playerNum = parseInt(btn.dataset.player, 10);
+      const playerIdx = parseInt(btn.dataset.player, 10) - 1;
       const delta = parseInt(btn.dataset.delta, 10);
-      const player = state.players[playerNum - 1];
+      const player = state.players[playerIdx];
       player.score = Math.max(0, player.score + delta);
-      updateScoreDisplay(playerNum, true);
+      updateScoreDisplay(playerIdx, true);
     });
   });
 
-  /* ---------------- Host controls ---------------- */
+  /* ---------------- תצוגת נקודות פסילה ---------------- */
+  function renderMissDots() {
+    [0, 1].forEach((idx) => {
+      const dots = el.missDots[idx].querySelectorAll('.dot');
+      dots.forEach((dot, dotIdx) => {
+        dot.classList.toggle('used', dotIdx < state.misses[idx]);
+      });
+    });
+  }
 
-  el.btnReveal.addEventListener('click', () => {
-    revealAllTiles();
+  /* ---------------- הדגשת תור נוכחי ---------------- */
+  function renderTurnHighlight() {
+    [0, 1].forEach((idx) => {
+      const isActive = idx === state.turnIndex;
+      el.scoreboards[idx].classList.toggle('active-turn', isActive);
+    });
+  }
+
+  /* ---------------- הפעלה/נטרול כפתורי המנחה ---------------- */
+  function setControlsEnabled(enabled) {
+    el.btnCorrect.disabled = !enabled;
+    el.btnMiss.disabled = !enabled;
+  }
+
+  /* ---------------- ניחוש נכון ---------------- */
+  el.btnCorrect.addEventListener('click', () => {
+    if (state.roundLocked) return;
+    const winnerIdx = state.turnIndex;
+    state.players[winnerIdx].score += 1;
+    updateScoreDisplay(winnerIdx, true);
+    endRound({
+      type: 'correct',
+      message: `✅ ${state.players[winnerIdx].name} ניחש/ה נכון! התשובה: ${state.currentItem.answer}`,
+    });
   });
 
-  el.btnNextRound.addEventListener('click', () => {
-    el.nextRoundUpload.value = '';
-    el.nextRoundUpload.click();
-  });
+  /* ---------------- לא ידע / העבר תור ---------------- */
+  el.btnMiss.addEventListener('click', () => {
+    if (state.roundLocked) return;
+    const missedIdx = state.turnIndex;
+    state.misses[missedIdx] += 1;
+    renderMissDots();
 
-  el.nextRoundUpload.addEventListener('change', async () => {
-    const file = el.nextRoundUpload.files && el.nextRoundUpload.files[0];
-    if (!file) return;
-    try {
-      const url = await readImageFile(file);
-      state.imageUrl = url;
-      el.hiddenImage.src = url;
-      buildGrid(state.gridSize);
-    } catch (err) {
-      // If reading fails, keep the previous round's image/grid untouched.
-      console.error('Failed to load next round image:', err);
+    if (state.misses[missedIdx] >= MAX_MISSES) {
+      const winnerIdx = missedIdx === 0 ? 1 : 0;
+      state.players[winnerIdx].score += 1;
+      updateScoreDisplay(winnerIdx, true);
+      endRound({
+        type: 'lost',
+        message: `❌ ${state.players[missedIdx].name} פספס/ה פעמיים! הנקודה עוברת ל-${state.players[winnerIdx].name}. התשובה: ${state.currentItem.answer}`,
+      });
+    } else {
+      state.turnIndex = missedIdx === 0 ? 1 : 0;
+      renderTurnHighlight();
     }
   });
 
+  /* ---------------- סיום סיבוב עם באנר ---------------- */
+  function endRound({ type, message }) {
+    state.roundLocked = true;
+    setControlsEnabled(false);
+
+    el.itemAnswer.textContent = state.currentItem.answer;
+    el.itemAnswer.classList.remove('hidden');
+
+    el.roundBanner.textContent = message;
+    el.roundBanner.className = `round-banner ${type}`;
+    el.roundBanner.classList.remove('hidden');
+
+    // מעבר אוטומטי לסיבוב הבא לאחר השהיה קצרה.
+    setTimeout(() => {
+      startNewRound({ resetTurn: true });
+    }, 2200);
+  }
+
+  /* ---------------- הצג תשובה (ידני, ללא סיום סיבוב) ---------------- */
+  el.btnReveal.addEventListener('click', () => {
+    el.itemAnswer.textContent = state.currentItem.answer;
+    el.itemAnswer.classList.toggle('hidden');
+  });
+
+  /* ---------------- תמונה הבאה (דילוג ידני ללא ניקוד) ---------------- */
+  el.btnNext.addEventListener('click', () => {
+    startNewRound({ resetTurn: true });
+  });
+
+  /* ---------------- איפוס המשחק ---------------- */
   el.btnReset.addEventListener('click', () => {
-    // Keep names/scores cleared and return to the start screen.
     state.players[0].score = 0;
     state.players[1].score = 0;
-    state.imageUrl = null;
+    state.roundCount = 0;
+    state.previousItem = null;
 
     el.startForm.reset();
-    el.imagePreviewWrap.classList.add('hidden');
-    el.imagePreview.src = '';
     clearError();
 
     el.gameScreen.classList.add('hidden');
     el.startScreen.classList.remove('hidden');
   });
+
+  /* ---------------- אתחול ---------------- */
+  buildCategoryPicker();
 })();

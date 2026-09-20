@@ -1,85 +1,78 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hidden Picture Gameshow</title>
+<title>דו-קרב הניחושים</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- ===================== START SCREEN ===================== -->
+  <!-- ===================== מסך פתיחה ===================== -->
   <div id="start-screen" class="screen start-screen">
     <div class="start-card glass">
-      <h1 class="show-title">Hidden Picture <span>Showdown</span></h1>
-      <p class="show-subtitle">Enter the players and pick a picture to hide behind the grid.</p>
+      <h1 class="show-title">דו-קרב <span>הניחושים</span></h1>
+      <p class="show-subtitle">שני מתמודדים, קטגוריה אחת, ניחוש נכון אחד ינצח!</p>
 
       <form id="start-form">
         <div class="field-row">
           <div class="field">
-            <label for="player1-name">Player 1</label>
-            <input type="text" id="player1-name" placeholder="Player 1 name" maxlength="20" required />
+            <label for="player1-name">מתמודד 1</label>
+            <input type="text" id="player1-name" placeholder="שם מתמודד 1" maxlength="20" required />
           </div>
           <div class="field">
-            <label for="player2-name">Player 2</label>
-            <input type="text" id="player2-name" placeholder="Player 2 name" maxlength="20" required />
+            <label for="player2-name">מתמודד 2</label>
+            <input type="text" id="player2-name" placeholder="שם מתמודד 2" maxlength="20" required />
           </div>
         </div>
 
         <div class="field">
-          <label for="image-upload">Hidden Picture</label>
-          <div class="upload-row">
-            <input type="file" id="image-upload" accept="image/*" />
-            <span class="or-divider">or</span>
-            <input type="url" id="image-url" placeholder="Paste an image URL" />
-          </div>
-          <div id="image-preview-wrap" class="image-preview-wrap hidden">
-            <img id="image-preview" alt="Preview of hidden picture" />
-          </div>
+          <label>בחרו קטגוריה</label>
+          <div class="category-picker" id="category-picker"></div>
         </div>
 
-        <div class="field">
-          <label for="grid-size">Grid Size</label>
-          <select id="grid-size">
-            <option value="4">4 &times; 4</option>
-            <option value="5" selected>5 &times; 5</option>
-          </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-start">Start Game</button>
+        <button type="submit" class="btn btn-primary btn-start">התחל משחק</button>
         <p id="start-error" class="start-error hidden"></p>
       </form>
     </div>
   </div>
 
-  <!-- ===================== GAME SCREEN ===================== -->
+  <!-- ===================== מסך המשחק ===================== -->
   <div id="game-screen" class="screen game-screen hidden">
 
     <header class="show-header">
-      <h1 class="game-logo">Hidden Picture <span>Showdown</span></h1>
+      <h1 class="game-logo">דו-קרב <span>הניחושים</span></h1>
+      <div class="category-badge" id="category-badge">קטגוריה: —</div>
     </header>
 
     <main class="board-layout">
 
-      <!-- Player 1 Scoreboard -->
-      <section class="scoreboard glass" data-player="1">
-        <div class="score-name" id="score-name-1">Player 1</div>
+      <!-- מתמודד 1 -->
+      <section class="scoreboard glass" data-player="1" id="scoreboard-1">
+        <div class="turn-flag" id="turn-flag-1">🎙️ תור</div>
+        <div class="score-name" id="score-name-1">מתמודד 1</div>
         <div class="score-value" id="score-value-1">0</div>
+        <div class="miss-dots" id="miss-dots-1">
+          <span class="dot"></span><span class="dot"></span>
+        </div>
         <div class="score-buttons">
-          <button class="score-btn minus" data-player="1" data-delta="-1" aria-label="Subtract point from Player 1">&minus;</button>
-          <button class="score-btn plus" data-player="1" data-delta="1" aria-label="Add point to Player 1">+</button>
+          <button class="score-btn minus" data-player="1" data-delta="-1" aria-label="הורד נקודה למתמודד 1">&minus;</button>
+          <button class="score-btn plus" data-player="1" data-delta="1" aria-label="הוסף נקודה למתמודד 1">+</button>
         </div>
       </section>
 
-      <!-- TV Screen -->
+      <!-- מסך הטלוויזיה -->
       <div class="tv-wrapper">
         <div class="tv-frame">
           <div class="tv-brand-dot"></div>
           <div class="tv-screen" id="tv-screen">
-            <img id="hidden-image" class="hidden-image" alt="Hidden picture" />
-            <div class="grid" id="tile-grid"></div>
+            <div class="round-stage" id="round-stage">
+              <div class="item-emoji" id="item-emoji">🎬</div>
+              <div class="item-answer hidden" id="item-answer"></div>
+            </div>
+            <div class="round-banner hidden" id="round-banner"></div>
             <div class="scanlines"></div>
             <div class="vignette"></div>
           </div>
@@ -87,26 +80,30 @@
         <div class="tv-stand"></div>
       </div>
 
-      <!-- Player 2 Scoreboard -->
-      <section class="scoreboard glass" data-player="2">
-        <div class="score-name" id="score-name-2">Player 2</div>
+      <!-- מתמודד 2 -->
+      <section class="scoreboard glass" data-player="2" id="scoreboard-2">
+        <div class="turn-flag" id="turn-flag-2">🎙️ תור</div>
+        <div class="score-name" id="score-name-2">מתמודד 2</div>
         <div class="score-value" id="score-value-2">0</div>
+        <div class="miss-dots" id="miss-dots-2">
+          <span class="dot"></span><span class="dot"></span>
+        </div>
         <div class="score-buttons">
-          <button class="score-btn minus" data-player="2" data-delta="-1" aria-label="Subtract point from Player 2">&minus;</button>
-          <button class="score-btn plus" data-player="2" data-delta="1" aria-label="Add point to Player 2">+</button>
+          <button class="score-btn minus" data-player="2" data-delta="-1" aria-label="הורד נקודה למתמודד 2">&minus;</button>
+          <button class="score-btn plus" data-player="2" data-delta="1" aria-label="הוסף נקודה למתמודד 2">+</button>
         </div>
       </section>
     </main>
 
     <footer class="host-controls glass">
-      <button id="btn-reveal" class="btn btn-secondary">🔍 Reveal All</button>
-      <button id="btn-next-round" class="btn btn-secondary">➡️ Next Round</button>
-      <button id="btn-reset" class="btn btn-danger">⟲ Reset Game</button>
+      <button id="btn-correct" class="btn btn-success">✅ ניחוש נכון</button>
+      <button id="btn-miss" class="btn btn-danger">🙅 לא ידע / העבר תור</button>
+      <button id="btn-reveal" class="btn btn-secondary">👁️ הצג תשובה</button>
+      <button id="btn-next" class="btn btn-secondary">⏭️ תמונה הבאה</button>
+      <select id="category-select" class="category-select"></select>
+      <button id="btn-reset" class="btn btn-danger">⟲ איפוס משחק</button>
     </footer>
   </div>
-
-  <!-- Hidden file input reused for "Next Round" uploads -->
-  <input type="file" id="next-round-upload" accept="image/*" class="hidden" />
 
   <script src="script.js"></script>
 </body>
