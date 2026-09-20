@@ -31,6 +31,7 @@
         <div class="field">
           <label>בחרו קטגוריה</label>
           <div class="category-picker" id="category-picker"></div>
+          <button type="button" id="btn-open-custom-builder" class="btn btn-secondary btn-custom-trigger">🖼️ העלו תמונות משלכם כקטגוריה</button>
         </div>
 
         <button type="submit" class="btn btn-primary btn-start">התחל משחק</button>
@@ -70,6 +71,7 @@
           <div class="tv-screen" id="tv-screen">
             <div class="round-stage" id="round-stage">
               <div class="item-emoji" id="item-emoji">🎬</div>
+              <img class="item-image hidden" id="item-image" alt="תמונת הסיבוב הנוכחי" />
               <div class="item-answer hidden" id="item-answer"></div>
             </div>
             <div class="round-banner hidden" id="round-banner"></div>
@@ -100,9 +102,36 @@
       <button id="btn-miss" class="btn btn-danger">🙅 לא ידע / העבר תור</button>
       <button id="btn-reveal" class="btn btn-secondary">👁️ הצג תשובה</button>
       <button id="btn-next" class="btn btn-secondary">⏭️ תמונה הבאה</button>
+      <button id="btn-manage-custom" class="btn btn-secondary">🖼️ נהל תמונות</button>
       <select id="category-select" class="category-select"></select>
       <button id="btn-reset" class="btn btn-danger">⟲ איפוס משחק</button>
     </footer>
+  </div>
+
+  <!-- ===================== חלון בניית קטגוריית תמונות ===================== -->
+  <div id="custom-builder-modal" class="modal-overlay hidden">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h2>🖼️ קטגוריית תמונות משלכם</h2>
+        <button type="button" id="btn-close-custom-modal" class="modal-close" aria-label="סגור חלון">✕</button>
+      </div>
+
+      <div class="field">
+        <label for="custom-category-name">שם הקטגוריה (רשות)</label>
+        <input type="text" id="custom-category-name" placeholder="לדוגמה: החברים שלי" maxlength="30" />
+      </div>
+
+      <div class="field">
+        <label for="custom-image-upload">העלאת תמונות (אפשר לבחור כמה יחד)</label>
+        <input type="file" id="custom-image-upload" accept="image/*" multiple />
+        <p class="hint-text">לכל תמונה יש לרשום מה (או מי) מופיע בה. נדרשות לפחות 2 תמונות עם תשובה.</p>
+      </div>
+
+      <div id="custom-items-list" class="custom-items-list"></div>
+
+      <button type="button" id="btn-save-custom" class="btn btn-primary">שמור קטגוריה</button>
+      <p id="custom-error" class="start-error hidden"></p>
+    </div>
   </div>
 
   <script src="script.js"></script>

@@ -102,6 +102,8 @@
     misses: [0, 0],    // פסילות בסיבוב הנוכחי לכל שחקן
     roundCount: 0,
     roundLocked: false, // חוסם פעולות בזמן הצגת הבאנר בין סיבובים
+    customItems: [],    // {id, imageUrl, answer} - תמונות שהמנחה העלה בעצמו
+    customCategoryName: '',
   };
 
   /* ---------------- הפניות DOM ---------------- */
@@ -140,6 +142,7 @@
     ],
 
     itemEmoji: document.getElementById('item-emoji'),
+    itemImage: document.getElementById('item-image'),
     itemAnswer: document.getElementById('item-answer'),
     roundBanner: document.getElementById('round-banner'),
 
@@ -147,7 +150,17 @@
     btnMiss: document.getElementById('btn-miss'),
     btnReveal: document.getElementById('btn-reveal'),
     btnNext: document.getElementById('btn-next'),
+    btnManageCustom: document.getElementById('btn-manage-custom'),
     btnReset: document.getElementById('btn-reset'),
+
+    btnOpenCustomBuilder: document.getElementById('btn-open-custom-builder'),
+    customModal: document.getElementById('custom-builder-modal'),
+    btnCloseCustomModal: document.getElementById('btn-close-custom-modal'),
+    customCategoryNameInput: document.getElementById('custom-category-name'),
+    customImageUpload: document.getElementById('custom-image-upload'),
+    customItemsList: document.getElementById('custom-items-list'),
+    btnSaveCustom: document.getElementById('btn-save-custom'),
+    customError: document.getElementById('custom-error'),
   };
 
   let selectedCategoryKey = 'fruits';
@@ -186,6 +199,138 @@
     state.previousItem = null;
     el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES[state.categoryKey].name}`;
     startNewRound({ resetTurn: false });
+  });
+
+  /* =============================================================
+     קטגוריית תמונות מותאמת אישית (העלאה עצמית)
+  ============================================================= */
+
+  function isGameRunning() {
+    return !el.gameScreen.classList.contains('hidden');
+  }
+
+  /** מסנכרן את CATEGORIES.custom עם state.customItems הנוכחי. */
+  function refreshCustomCategory() {
+    const validItems = state.customItems.filter((it) => it.answer.trim() !== '');
+    if (validItems.length >= 2 && validItems.length === state.customItems.length) {
+      CATEGORIES.custom = {
+        name: state.customCategoryName || 'התמונות שלי',
+        emoji: '🖼️',
+        items: state.customItems.map((it) => ({ imageUrl: it.imageUrl, answer: it.answer.trim() })),
+      };
+    } else {
+      delete CATEGORIES.custom;
+    }
+  }
+
+  function renderCustomItemsList() {
+    el.customItemsList.innerHTML = '';
+    if (state.customItems.length === 0) {
+      const hint = document.createElement('p');
+      hint.className = 'custom-empty-hint';
+      hint.textContent = 'עדיין לא הועלו תמונות. בחרו קובץ אחד או יותר למעלה.';
+      el.customItemsList.appendChild(hint);
+      return;
+    }
+    state.customItems.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'custom-item-row';
+      row.dataset.id = item.id;
+
+      const thumb = document.createElement('img');
+      thumb.className = 'custom-item-thumb';
+      thumb.src = item.imageUrl;
+      thumb.alt = 'תצוגה מקדימה';
+
+      const answerInput = document.createElement('input');
+      answerInput.type = 'text';
+      answerInput.className = 'custom-item-answer';
+      answerInput.placeholder = 'מה (או מי) מופיע בתמונה?';
+      answerInput.maxLength = 40;
+      answerInput.value = item.answer;
+      answerInput.addEventListener('input', () => {
+        item.answer = answerInput.value;
+      });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'custom-item-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.setAttribute('aria-label', 'הסר תמונה');
+      removeBtn.addEventListener('click', () => {
+        state.customItems = state.customItems.filter((it) => it.id !== item.id);
+        renderCustomItemsList();
+      });
+
+      row.appendChild(thumb);
+      row.appendChild(answerInput);
+      row.appendChild(removeBtn);
+      el.customItemsList.appendChild(row);
+    });
+  }
+
+  function openCustomModal() {
+    el.customCategoryNameInput.value = state.customCategoryName;
+    el.customImageUpload.value = '';
+    el.customError.classList.add('hidden');
+    renderCustomItemsList();
+    el.customModal.classList.remove('hidden');
+  }
+
+  function closeCustomModal() {
+    el.customModal.classList.add('hidden');
+  }
+
+  el.btnOpenCustomBuilder?.addEventListener('click', openCustomModal);
+  el.btnManageCustom?.addEventListener('click', openCustomModal);
+  el.btnCloseCustomModal?.addEventListener('click', closeCustomModal);
+  el.customModal?.addEventListener('click', (event) => {
+    if (event.target === el.customModal) closeCustomModal();
+  });
+
+  el.customImageUpload?.addEventListener('change', () => {
+    const files = Array.from(el.customImageUpload.files || []);
+    files.forEach((file, idx) => {
+      const imageUrl = URL.createObjectURL(file);
+      state.customItems.push({
+        id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+        imageUrl,
+        answer: '',
+      });
+    });
+    el.customImageUpload.value = '';
+    renderCustomItemsList();
+  });
+
+  el.btnSaveCustom?.addEventListener('click', () => {
+    const validItems = state.customItems.filter((it) => it.answer.trim() !== '');
+    if (state.customItems.length < 2) {
+      el.customError.textContent = 'יש להעלות לפחות 2 תמונות.';
+      el.customError.classList.remove('hidden');
+      return;
+    }
+    if (validItems.length !== state.customItems.length) {
+      el.customError.textContent = 'יש למלא תשובה לכל תמונה שהועלתה.';
+      el.customError.classList.remove('hidden');
+      return;
+    }
+
+    state.customCategoryName = el.customCategoryNameInput.value.trim();
+    refreshCustomCategory();
+
+    if (isGameRunning()) {
+      buildCategorySelect();
+      el.categorySelect.value = 'custom';
+      state.categoryKey = 'custom';
+      state.previousItem = null;
+      el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES.custom.name}`;
+      startNewRound({ resetTurn: false });
+    } else {
+      selectedCategoryKey = 'custom';
+      buildCategoryPicker();
+    }
+
+    closeCustomModal();
   });
 
   /* ---------------- טופס ההתחלה ---------------- */
@@ -261,7 +406,16 @@
     }
     state.roundCount += 1;
 
-    el.itemEmoji.textContent = state.currentItem.emoji;
+    if (state.currentItem.imageUrl) {
+      el.itemImage.src = state.currentItem.imageUrl;
+      el.itemImage.classList.remove('hidden');
+      el.itemEmoji.classList.add('hidden');
+    } else {
+      el.itemEmoji.textContent = state.currentItem.emoji;
+      el.itemEmoji.classList.remove('hidden');
+      el.itemImage.classList.add('hidden');
+      el.itemImage.removeAttribute('src');
+    }
     el.itemAnswer.textContent = '';
     el.itemAnswer.classList.add('hidden');
     el.roundBanner.classList.add('hidden');
