@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hidden Picture Gameshow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ===================== START SCREEN ===================== -->
+  <div id="start-screen" class="screen start-screen">
+    <div class="start-card glass">
+      <h1 class="show-title">Hidden Picture <span>Showdown</span></h1>
+      <p class="show-subtitle">Enter the players and pick a picture to hide behind the grid.</p>
+
+      <form id="start-form">
+        <div class="field-row">
+          <div class="field">
+            <label for="player1-name">Player 1</label>
+            <input type="text" id="player1-name" placeholder="Player 1 name" maxlength="20" required />
+          </div>
+          <div class="field">
+            <label for="player2-name">Player 2</label>
+            <input type="text" id="player2-name" placeholder="Player 2 name" maxlength="20" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="image-upload">Hidden Picture</label>
+          <div class="upload-row">
+            <input type="file" id="image-upload" accept="image/*" />
+            <span class="or-divider">or</span>
+            <input type="url" id="image-url" placeholder="Paste an image URL" />
+          </div>
+          <div id="image-preview-wrap" class="image-preview-wrap hidden">
+            <img id="image-preview" alt="Preview of hidden picture" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="grid-size">Grid Size</label>
+          <select id="grid-size">
+            <option value="4">4 &times; 4</option>
+            <option value="5" selected>5 &times; 5</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-start">Start Game</button>
+        <p id="start-error" class="start-error hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== GAME SCREEN ===================== -->
+  <div id="game-screen" class="screen game-screen hidden">
+
+    <header class="show-header">
+      <h1 class="game-logo">Hidden Picture <span>Showdown</span></h1>
+    </header>
+
+    <main class="board-layout">
+
+      <!-- Player 1 Scoreboard -->
+      <section class="scoreboard glass" data-player="1">
+        <div class="score-name" id="score-name-1">Player 1</div>
+        <div class="score-value" id="score-value-1">0</div>
+        <div class="score-buttons">
+          <button class="score-btn minus" data-player="1" data-delta="-1" aria-label="Subtract point from Player 1">&minus;</button>
+          <button class="score-btn plus" data-player="1" data-delta="1" aria-label="Add point to Player 1">+</button>
+        </div>
+      </section>
+
+      <!-- TV Screen -->
+      <div class="tv-wrapper">
+        <div class="tv-frame">
+          <div class="tv-brand-dot"></div>
+          <div class="tv-screen" id="tv-screen">
+            <img id="hidden-image" class="hidden-image" alt="Hidden picture" />
+            <div class="grid" id="tile-grid"></div>
+            <div class="scanlines"></div>
+            <div class="vignette"></div>
+          </div>
+        </div>
+        <div class="tv-stand"></div>
+      </div>
+
+      <!-- Player 2 Scoreboard -->
+      <section class="scoreboard glass" data-player="2">
+        <div class="score-name" id="score-name-2">Player 2</div>
+        <div class="score-value" id="score-value-2">0</div>
+        <div class="score-buttons">
+          <button class="score-btn minus" data-player="2" data-delta="-1" aria-label="Subtract point from Player 2">&minus;</button>
+          <button class="score-btn plus" data-player="2" data-delta="1" aria-label="Add point to Player 2">+</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="host-controls glass">
+      <button id="btn-reveal" class="btn btn-secondary">🔍 Reveal All</button>
+      <button id="btn-next-round" class="btn btn-secondary">➡️ Next Round</button>
+      <button id="btn-reset" class="btn btn-danger">⟲ Reset Game</button>
+    </footer>
+  </div>
+
+  <!-- Hidden file input reused for "Next Round" uploads -->
+  <input type="file" id="next-round-upload" accept="image/*" class="hidden" />
+
+  <script src="script.js"></script>
+</body>
+</html>
