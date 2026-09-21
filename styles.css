@@ -202,6 +202,14 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
   font-weight: 600;
 }
 .category-option .cat-emoji { font-size: 1.5rem; }
+.category-option .cat-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(35, 229, 255, 0.5);
+  flex-shrink: 0;
+}
 .category-option:hover {
   border-color: rgba(35, 229, 255, 0.5);
 }

@@ -206,7 +206,11 @@
       option.className = 'category-option';
       option.dataset.key = key;
       if (key === selectedCategoryKey) option.classList.add('selected');
-      option.innerHTML = `<span class="cat-emoji">${cat.emoji}</span><span>${cat.name}</span>`;
+      const thumbItem = cat.items.find((it) => it.imageUrl);
+      const iconHtml = thumbItem
+        ? `<img class="cat-thumb" src="${thumbItem.imageUrl}" alt="${cat.name}" loading="lazy">`
+        : `<span class="cat-emoji">${cat.emoji}</span>`;
+      option.innerHTML = `${iconHtml}<span>${cat.name}</span>`;
       option.addEventListener('click', () => {
         selectedCategoryKey = key;
         [...el.categoryPicker.children].forEach((c) => c.classList.remove('selected'));
