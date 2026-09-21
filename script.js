@@ -636,4 +636,42 @@
   /* ---------------- אתחול ---------------- */
   buildCategoryPicker();
   loadFolderCategories();
+  setupInstallPrompt();
+  registerServiceWorker();
 })();
+
+/* =============================================================
+   PWA: התקנה למסך הבית + Service Worker
+============================================================= */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      /* אין קריטיות אם זה נכשל - האפליקציה עדיין עובדת דרך הרשת */
+    });
+  });
+}
+
+function setupInstallPrompt() {
+  let deferredPrompt = null;
+  const btn = document.getElementById('btn-install-app');
+  if (!btn) return;
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    btn.classList.remove('hidden');
+  });
+
+  btn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    btn.classList.add('hidden');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    btn.classList.add('hidden');
+  });
+}

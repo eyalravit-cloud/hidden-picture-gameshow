@@ -26,6 +26,7 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   font-family: 'Heebo', 'Assistant', 'Segoe UI', sans-serif;
   color: var(--text-light);
   background:
@@ -34,6 +35,12 @@ html, body {
     radial-gradient(circle at 50% 90%, rgba(255, 47, 214, 0.18), transparent 50%),
     var(--bg-deep);
   overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, select {
+  touch-action: manipulation;
 }
 
 .hidden { display: none !important; }
@@ -697,13 +704,121 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
   .tv-wrapper { order: -1; width: 100%; }
 }
 
+/* ---------------- גירסה מלאה לטלפון ---------------- */
 @media (max-width: 560px) {
+  html { font-size: 15px; }
+
+  .game-screen {
+    padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 0.6rem calc(6.5rem + env(safe-area-inset-bottom, 0px));
+    min-height: 100dvh;
+  }
+
+  .start-screen {
+    padding: calc(1.2rem + env(safe-area-inset-top, 0px)) 0.8rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
+    min-height: 100dvh;
+  }
+
   .field-row { flex-direction: column; }
   .category-picker { grid-template-columns: 1fr; }
-  .start-card { padding: 1.8rem 1.4rem; }
-  .scoreboard { padding: 1rem; }
-  .score-value { font-size: 2.2rem; }
-  .host-controls { padding: 1rem; gap: 0.6rem; }
-  .btn { padding: 0.7rem 1rem; font-size: 0.85rem; }
-  .modal-card { padding: 1.3rem 1.2rem; }
+  .start-card { padding: 1.6rem 1.2rem; max-width: 100%; }
+  .show-title { font-size: 1.7rem; }
+
+  input[type="text"], .category-select, .custom-item-answer {
+    font-size: 16px; /* מונע זום אוטומטי באייפון בעת פוקוס */
+  }
+
+  /* לוחות ניקוד: שני עמודים קטנים וצפופים זה לצד זה, נוחים לאגודל */
+  .board-layout { gap: 0.6rem; }
+  .scoreboard {
+    padding: 0.75rem 0.5rem;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 0.35rem;
+    border-radius: var(--radius-md);
+  }
+  .score-name { font-size: 0.95rem; }
+  .score-value { font-size: 2.1rem; }
+  .turn-flag { font-size: 0.65rem; padding: 0.2rem 0.55rem; top: -12px; }
+  .miss-dots .dot { width: 10px; height: 10px; }
+
+  .score-buttons { gap: 0.9rem; margin-top: 0.15rem; }
+  .score-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4rem;
+  }
+
+  .tv-wrapper { margin: 0.4rem 0; }
+  .tv-frame { padding: 0.9rem; border-radius: 20px; }
+  .tv-stand { display: none; }
+  .item-emoji { font-size: clamp(4rem, 26vw, 7rem); }
+  .item-image { max-width: 88vw; max-height: 34dvh; }
+  .item-answer { font-size: clamp(1.05rem, 4.5vw, 1.4rem); }
+
+  .category-badge { font-size: 0.75rem; padding: 0.3rem 0.8rem; }
+  .game-logo { font-size: 1.25rem; }
+
+  /* פאנל שליטה: סרגל דביק תחתון עם גלילה אופקית, אצבע-ידידותי */
+  .host-controls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 0.8rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 0;
+  }
+  .host-controls::-webkit-scrollbar { display: none; }
+  .host-controls .btn,
+  .host-controls .category-select {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+  .host-controls .btn {
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    min-height: 44px; /* מטרת מגע נוחה */
+  }
+  #btn-correct, #btn-miss {
+    font-weight: 800;
+  }
+
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal-card {
+    max-width: 100%;
+    width: 100%;
+    max-height: calc(92dvh - env(safe-area-inset-bottom, 0px));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 1.3rem 1.2rem calc(1.3rem + env(safe-area-inset-bottom, 0px));
+    animation: sheet-in 0.3s ease;
+  }
+  @keyframes sheet-in {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .btn-custom-trigger, .btn-start { min-height: 48px; }
+}
+
+/* ---------------- אוריינטציית לרוחב בטלפון ---------------- */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 480px) {
+  .game-screen { padding-bottom: 4.5rem; }
+  .board-layout { grid-template-columns: 140px minmax(200px, 1fr) 140px; }
+  .tv-wrapper { order: 0; }
+  .scoreboard { flex-direction: column; }
+  .item-emoji { font-size: clamp(3rem, 12vw, 5rem); }
+  .item-image { max-height: 55dvh; }
+  .host-controls { padding: 0.5rem 0.8rem; }
+  .host-controls .btn { padding: 0.6rem 0.9rem; font-size: 0.78rem; min-height: 38px; }
 }
