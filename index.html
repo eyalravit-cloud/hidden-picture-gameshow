@@ -87,7 +87,13 @@
         <div class="tv-frame">
           <div class="tv-brand-dot"></div>
           <div class="tv-screen" id="tv-screen">
-            <div class="turn-timer" id="turn-timer">10</div>
+            <div class="turn-timer" id="turn-timer">
+              <svg class="timer-ring" viewBox="0 0 36 36" aria-hidden="true">
+                <circle class="timer-ring-bg" cx="18" cy="18" r="15.9155" />
+                <circle class="timer-ring-fg" id="timer-ring-fg" cx="18" cy="18" r="15.9155" />
+              </svg>
+              <span class="timer-number" id="timer-number">10</span>
+            </div>
             <div class="round-stage" id="round-stage">
               <div class="item-emoji" id="item-emoji">🎬</div>
               <img class="item-image hidden" id="item-image" alt="תמונת הסיבוב הנוכחי" />

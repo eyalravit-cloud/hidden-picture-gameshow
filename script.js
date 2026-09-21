@@ -162,6 +162,8 @@
     itemAnswer: document.getElementById('item-answer'),
     roundBanner: document.getElementById('round-banner'),
     turnTimer: document.getElementById('turn-timer'),
+    timerRingFg: document.getElementById('timer-ring-fg'),
+    timerNumber: document.getElementById('timer-number'),
 
     btnCorrect: document.getElementById('btn-correct'),
     btnMiss: document.getElementById('btn-miss'),
@@ -273,7 +275,11 @@
             .filter((f) => f.type === 'file' && IMAGE_EXT_REGEX.test(f.name))
             .map((f) => ({
               imageUrl: f.download_url,
-              answer: f.name.replace(IMAGE_EXT_REGEX, '').replace(/[-_]+/g, ' ').trim(),
+              answer: f.name
+                .replace(IMAGE_EXT_REGEX, '')
+                .replace(/[-_]+/g, ' ')
+                .replace(/\s*\(?\d+\)?\s*$/, '') // מסיר מספר סידורי בסוף שם הקובץ (למשל "אגס 15" -> "אגס")
+                .trim(),
             }))
             .filter((it) => it.answer);
 
@@ -446,6 +452,7 @@
   el.startForm.addEventListener('submit', (event) => {
     event.preventDefault();
     clearError();
+    ensureAudio(); // מבטיח שהצליל יעבוד גם באייפון (דורש מחווה אמיתית של המשתמש)
 
     const name1 = el.player1Input.value.trim() || 'מתמודד 1';
     const name2 = el.player2Input.value.trim() || 'מתמודד 2';
@@ -526,7 +533,12 @@
 
   function renderTimer() {
     if (!el.turnTimer) return;
-    el.turnTimer.textContent = String(Math.max(state.timeLeft, 0));
+    const clamped = Math.max(state.timeLeft, 0);
+    el.timerNumber.textContent = String(clamped);
+    const percent = clamped / TURN_SECONDS;
+    if (el.timerRingFg) {
+      el.timerRingFg.style.strokeDashoffset = String(100 - percent * 100);
+    }
     el.turnTimer.classList.toggle('urgent', state.timeLeft <= 3);
   }
 
@@ -546,7 +558,43 @@
 
   function handleTimeout() {
     if (state.roundLocked) return;
+    playBuzzer();
     registerMiss({ auto: true });
+  }
+
+  /* ---------------- צליל פסילה (Web Audio API, ללא קובץ חיצוני) ---------------- */
+  let audioCtx = null;
+  function ensureAudio() {
+    try {
+      if (!audioCtx) {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) audioCtx = new AudioCtxClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (err) {
+      /* דפדפן ללא תמיכה ב-Web Audio - פשוט לא ישמע צליל */
+    }
+  }
+  document.addEventListener('pointerdown', ensureAudio, { once: true });
+
+  function playBuzzer() {
+    if (!audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.55);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.3, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.62);
+    } catch (err) {
+      /* אם קרתה שגיאה בהשמעה - לא עוצרים את המשחק בגללה */
+    }
   }
 
   /* ---------------- התחלת סיבוב חדש ---------------- */
