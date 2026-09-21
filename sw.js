@@ -1,6 +1,6 @@
 // Service worker בסיסי: מאפשר התקנה למסך הבית ופתיחה מהירה גם עם רשת חלשה.
 // לא שומר תמונות שהועלו לתיקיות (אלה נטענות תמיד מרשת כדי לקבל עדכונים).
-const CACHE_NAME = "gameshow-shell-v1";
+const CACHE_NAME = "gameshow-shell-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -9,6 +9,8 @@ const SHELL_FILES = [
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
+  "./audio/correct.mp3",
+  "./audio/wrong.mp3",
 ];
 
 self.addEventListener("install", (event) => {

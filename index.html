@@ -131,9 +131,15 @@
       <button id="btn-refresh-folders-game" class="btn btn-secondary">🔄 רענן קטגוריות</button>
       <select id="category-select" class="category-select"></select>
       <button id="btn-declare-winner" class="btn btn-primary">🏆 והזוכה הוא</button>
+      <button id="btn-toggle-music" class="btn btn-secondary" aria-pressed="true">🔊 מוזיקה</button>
       <button id="btn-reset" class="btn btn-danger">⟲ איפוס משחק</button>
     </footer>
   </div>
+
+  <!-- ===================== צלילי המשחק ===================== -->
+  <audio id="audio-bg" src="audio/background.mp3" loop preload="auto"></audio>
+  <audio id="audio-correct" src="audio/correct.mp3" preload="auto"></audio>
+  <audio id="audio-wrong" src="audio/wrong.mp3" preload="auto"></audio>
 
   <!-- ===================== חלון בניית קטגוריית תמונות ===================== -->
   <div id="custom-builder-modal" class="modal-overlay hidden">

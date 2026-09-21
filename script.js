@@ -120,6 +120,7 @@
     usedItems: {},      // categoryKey -> Set(תשובות שכבר הוצגו) - מונע הצגת אותה תמונה פעמיים
     timerInterval: null,
     timeLeft: TURN_SECONDS,
+    musicEnabled: true,
   };
 
   /* ---------------- הפניות DOM ---------------- */
@@ -175,6 +176,10 @@
     btnRefreshFoldersGame: document.getElementById('btn-refresh-folders-game'),
 
     btnDeclareWinner: document.getElementById('btn-declare-winner'),
+    btnToggleMusic: document.getElementById('btn-toggle-music'),
+    audioBg: document.getElementById('audio-bg'),
+    audioCorrect: document.getElementById('audio-correct'),
+    audioWrong: document.getElementById('audio-wrong'),
     winnerOverlay: document.getElementById('winner-overlay'),
     winnerTitle: document.getElementById('winner-title'),
     winnerSub: document.getElementById('winner-sub'),
@@ -452,7 +457,7 @@
   el.startForm.addEventListener('submit', (event) => {
     event.preventDefault();
     clearError();
-    ensureAudio(); // מבטיח שהצליל יעבוד גם באייפון (דורש מחווה אמיתית של המשתמש)
+    unlockGameAudio(); // מבטיח שהצלילים יעבדו גם באייפון (דורש מחווה אמיתית של המשתמש)
 
     const name1 = el.player1Input.value.trim() || 'מתמודד 1';
     const name2 = el.player2Input.value.trim() || 'מתמודד 2';
@@ -490,6 +495,7 @@
 
     el.startScreen.classList.add('hidden');
     el.gameScreen.classList.remove('hidden');
+    startBackgroundMusic();
   }
 
   /* ---------------- מעקב תמונות שכבר הוצגו (איסור חזרה על אותה תמונה) ---------------- */
@@ -556,45 +562,70 @@
     }, 1000);
   }
 
-  function handleTimeout() {
-    if (state.roundLocked) return;
-    playBuzzer();
-    registerMiss({ auto: true });
-  }
-
-  /* ---------------- צליל פסילה (Web Audio API, ללא קובץ חיצוני) ---------------- */
-  let audioCtx = null;
-  function ensureAudio() {
-    try {
-      if (!audioCtx) {
-        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtxClass) audioCtx = new AudioCtxClass();
+  /* ---------------- צלילי המשחק (קבצי mp3 שהמנחה העלה) ---------------- */
+  function unlockGameAudio() {
+    // רק צלילי אפקט (נכון/פסילה) - מוזיקת הרקע מופעלת ישירות ב-startBackgroundMusic
+    // כדי למנוע מרוץ שבו ה"שחרור" הזה עוצר אותה מיד אחרי שהיא מתחילה לנגן.
+    [el.audioCorrect, el.audioWrong].forEach((audio) => {
+      if (!audio) return;
+      try {
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise
+            .then(() => {
+              audio.pause();
+              audio.currentTime = 0;
+            })
+            .catch(() => {});
+        } else {
+          audio.pause();
+        }
+      } catch (err) {
+        /* דפדפן שחוסם ניגון אוטומטי - ננסה שוב במחווה הבאה */
       }
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    } catch (err) {
-      /* דפדפן ללא תמיכה ב-Web Audio - פשוט לא ישמע צליל */
-    }
+    });
   }
-  document.addEventListener('pointerdown', ensureAudio, { once: true });
+  document.addEventListener('pointerdown', unlockGameAudio, { once: true });
 
-  function playBuzzer() {
-    if (!audioCtx) return;
+  function playSound(audio) {
+    if (!audio) return;
     try {
-      const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(90, now + 0.55);
-      gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(0.3, now + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.62);
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     } catch (err) {
       /* אם קרתה שגיאה בהשמעה - לא עוצרים את המשחק בגללה */
     }
+  }
+  function playCorrectSound() { playSound(el.audioCorrect); }
+  function playWrongSound() { playSound(el.audioWrong); }
+
+  function updateMusicButton() {
+    if (!el.btnToggleMusic) return;
+    el.btnToggleMusic.textContent = state.musicEnabled ? '🔊 מוזיקה' : '🔇 מוזיקה';
+    el.btnToggleMusic.setAttribute('aria-pressed', String(state.musicEnabled));
+  }
+  function startBackgroundMusic() {
+    if (!el.audioBg || !state.musicEnabled) return;
+    el.audioBg.volume = 0.35;
+    el.audioBg.play().catch(() => {});
+  }
+  function stopBackgroundMusic() {
+    if (!el.audioBg) return;
+    el.audioBg.pause();
+  }
+  if (el.btnToggleMusic) {
+    el.btnToggleMusic.addEventListener('click', () => {
+      state.musicEnabled = !state.musicEnabled;
+      updateMusicButton();
+      if (state.musicEnabled) startBackgroundMusic();
+      else stopBackgroundMusic();
+    });
+  }
+  updateMusicButton();
+
+  function handleTimeout() {
+    if (state.roundLocked) return;
+    registerMiss({ auto: true });
   }
 
   /* ---------------- התחלת סיבוב חדש ---------------- */
@@ -680,6 +711,7 @@
   el.btnCorrect.addEventListener('click', () => {
     if (state.roundLocked) return;
     stopTurnTimer();
+    playCorrectSound();
     const winnerIdx = state.turnIndex;
     state.players[winnerIdx].score += 1;
     updateScoreDisplay(winnerIdx, true);
@@ -693,6 +725,7 @@
   function registerMiss({ auto } = {}) {
     if (state.roundLocked) return;
     stopTurnTimer();
+    playWrongSound();
     const missedIdx = state.turnIndex;
     state.misses[missedIdx] += 1;
     renderMissDots();
@@ -748,6 +781,7 @@
   /* ---------------- איפוס המשחק ---------------- */
   el.btnReset.addEventListener('click', () => {
     stopTurnTimer();
+    stopBackgroundMusic();
     state.players[0].score = 0;
     state.players[1].score = 0;
     state.roundCount = 0;
