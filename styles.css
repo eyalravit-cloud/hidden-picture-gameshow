@@ -685,6 +685,69 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
 }
 .category-select option { background: #14172e; color: var(--text-light); }
 
+/* ---------------- שעון עצר לתור ---------------- */
+.turn-timer {
+  position: absolute;
+  top: 0.8rem;
+  right: 50%;
+  transform: translateX(50%);
+  z-index: 6;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--neon-blue);
+  background: rgba(5, 6, 15, 0.7);
+  border: 2px solid var(--neon-blue);
+  box-shadow: 0 0 16px rgba(35, 229, 255, 0.55);
+  transition: color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.turn-timer.urgent {
+  color: var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 0 20px rgba(255, 77, 94, 0.7);
+  animation: timer-pulse 0.6s ease infinite;
+}
+@keyframes timer-pulse {
+  0%, 100% { transform: translateX(50%) scale(1); }
+  50% { transform: translateX(50%) scale(1.12); }
+}
+
+/* ---------------- כרטיס הכרזת מנצח ---------------- */
+.winner-card {
+  text-align: center;
+  max-width: 480px;
+}
+.winner-trophy {
+  font-size: 4.5rem;
+  filter: drop-shadow(0 0 24px rgba(255, 210, 63, 0.7));
+  margin-bottom: 0.4rem;
+}
+.winner-title {
+  font-size: 1.7rem;
+  font-weight: 900;
+  margin: 0 0 0.6rem;
+  background: linear-gradient(90deg, var(--neon-gold), var(--neon-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.winner-sub {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0 0 1.6rem;
+}
+.winner-actions {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* =============================================================
    רספונסיביות
 ============================================================= */
@@ -757,6 +820,10 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
 
   .category-badge { font-size: 0.75rem; padding: 0.3rem 0.8rem; }
   .game-logo { font-size: 1.25rem; }
+  .turn-timer { width: 40px; height: 40px; font-size: 1.05rem; top: 0.5rem; }
+  .winner-card { padding: 1.6rem 1.2rem; }
+  .winner-trophy { font-size: 3.2rem; }
+  .winner-title { font-size: 1.3rem; }
 
   /* פאנל שליטה: סרגל דביק תחתון עם גלילה אופקית, אצבע-ידידותי */
   .host-controls {

@@ -88,6 +88,7 @@
   };
 
   const MAX_MISSES = 2;
+  const TURN_SECONDS = 10;
 
   /* ---------------- הגדרות לטעינת קטגוריות מתיקיית images/ בריפו ---------------- */
   const REMOTE_REPO = { owner: 'eyalravit-cloud', repo: 'hidden-picture-gameshow', branch: 'main', imagesPath: 'images' };
@@ -116,6 +117,9 @@
     roundLocked: false, // חוסם פעולות בזמן הצגת הבאנר בין סיבובים
     customItems: [],    // {id, imageUrl, answer} - תמונות שהמנחה העלה בעצמו
     customCategoryName: '',
+    usedItems: {},      // categoryKey -> Set(תשובות שכבר הוצגו) - מונע הצגת אותה תמונה פעמיים
+    timerInterval: null,
+    timeLeft: TURN_SECONDS,
   };
 
   /* ---------------- הפניות DOM ---------------- */
@@ -157,6 +161,7 @@
     itemImage: document.getElementById('item-image'),
     itemAnswer: document.getElementById('item-answer'),
     roundBanner: document.getElementById('round-banner'),
+    turnTimer: document.getElementById('turn-timer'),
 
     btnCorrect: document.getElementById('btn-correct'),
     btnMiss: document.getElementById('btn-miss'),
@@ -166,6 +171,13 @@
     btnReset: document.getElementById('btn-reset'),
     btnRefreshFoldersStart: document.getElementById('btn-refresh-folders-start'),
     btnRefreshFoldersGame: document.getElementById('btn-refresh-folders-game'),
+
+    btnDeclareWinner: document.getElementById('btn-declare-winner'),
+    winnerOverlay: document.getElementById('winner-overlay'),
+    winnerTitle: document.getElementById('winner-title'),
+    winnerSub: document.getElementById('winner-sub'),
+    btnWinnerNewGame: document.getElementById('btn-winner-newgame'),
+    btnWinnerClose: document.getElementById('btn-winner-close'),
 
     btnOpenCustomBuilder: document.getElementById('btn-open-custom-builder'),
     customModal: document.getElementById('custom-builder-modal'),
@@ -211,6 +223,7 @@
   el.categorySelect?.addEventListener('change', () => {
     state.categoryKey = el.categorySelect.value;
     state.previousItem = null;
+    resetUsedItems(state.categoryKey);
     el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES[state.categoryKey].name}`;
     startNewRound({ resetTurn: false });
   });
@@ -409,6 +422,7 @@
       el.categorySelect.value = 'custom';
       state.categoryKey = 'custom';
       state.previousItem = null;
+      resetUsedItems('custom');
       el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES.custom.name}`;
       startNewRound({ resetTurn: false });
     } else {
@@ -459,6 +473,8 @@
     updateScoreDisplay(0, false);
     updateScoreDisplay(1, false);
 
+    state.usedItems = {};
+
     buildCategorySelect();
     el.categorySelect.value = state.categoryKey;
     el.categoryBadge.textContent = `קטגוריה: ${CATEGORIES[state.categoryKey].name}`;
@@ -469,15 +485,68 @@
     el.gameScreen.classList.remove('hidden');
   }
 
-  /* ---------------- בחירת פריט אקראי מהקטגוריה (ללא חזרה מיידית) ---------------- */
+  /* ---------------- מעקב תמונות שכבר הוצגו (איסור חזרה על אותה תמונה) ---------------- */
+  function getUsedSet(categoryKey) {
+    if (!state.usedItems[categoryKey]) state.usedItems[categoryKey] = new Set();
+    return state.usedItems[categoryKey];
+  }
+  function resetUsedItems(categoryKey) {
+    if (categoryKey) delete state.usedItems[categoryKey];
+    else state.usedItems = {};
+  }
+
+  /* ---------------- בחירת פריט אקראי מהקטגוריה (ללא חזרה על תמונה שכבר הוצגה) ---------------- */
   function pickRandomItem() {
     const items = CATEGORIES[state.categoryKey].items;
-    if (items.length === 1) return items[0];
+    const used = getUsedSet(state.categoryKey);
+    let available = items.filter((it) => !used.has(it.answer));
+
+    if (available.length === 0) {
+      // כל התמונות בקטגוריה כבר הוצגו - פותחים סבב חדש מההתחלה
+      used.clear();
+      available = items;
+    }
+
+    if (available.length === 1) return available[0];
+
     let candidate;
     do {
-      candidate = items[Math.floor(Math.random() * items.length)];
+      candidate = available[Math.floor(Math.random() * available.length)];
     } while (state.previousItem && candidate.answer === state.previousItem.answer);
     return candidate;
+  }
+
+  /* ---------------- שעון עצר לתור (10 שניות) ---------------- */
+  function stopTurnTimer() {
+    if (state.timerInterval) {
+      clearInterval(state.timerInterval);
+      state.timerInterval = null;
+    }
+  }
+
+  function renderTimer() {
+    if (!el.turnTimer) return;
+    el.turnTimer.textContent = String(Math.max(state.timeLeft, 0));
+    el.turnTimer.classList.toggle('urgent', state.timeLeft <= 3);
+  }
+
+  function startTurnTimer() {
+    stopTurnTimer();
+    state.timeLeft = TURN_SECONDS;
+    renderTimer();
+    state.timerInterval = setInterval(() => {
+      state.timeLeft -= 1;
+      renderTimer();
+      if (state.timeLeft <= 0) {
+        stopTurnTimer();
+        handleTimeout();
+      }
+    }, 1000);
+  }
+
+  function handleTimeout() {
+    if (state.roundLocked) return;
+    registerMiss({ auto: true });
   }
 
   /* ---------------- התחלת סיבוב חדש ---------------- */
@@ -485,6 +554,7 @@
     state.roundLocked = false;
     state.misses = [0, 0];
     state.currentItem = pickRandomItem();
+    getUsedSet(state.categoryKey).add(state.currentItem.answer);
     state.previousItem = state.currentItem;
 
     if (resetTurn) {
@@ -510,6 +580,7 @@
     renderMissDots();
     renderTurnHighlight();
     setControlsEnabled(true);
+    startTurnTimer();
   }
 
   /* ---------------- תצוגת ניקוד ---------------- */
@@ -560,6 +631,7 @@
   /* ---------------- ניחוש נכון ---------------- */
   el.btnCorrect.addEventListener('click', () => {
     if (state.roundLocked) return;
+    stopTurnTimer();
     const winnerIdx = state.turnIndex;
     state.players[winnerIdx].score += 1;
     updateScoreDisplay(winnerIdx, true);
@@ -569,9 +641,10 @@
     });
   });
 
-  /* ---------------- לא ידע / העבר תור ---------------- */
-  el.btnMiss.addEventListener('click', () => {
+  /* ---------------- לא ידע / העבר תור (גם ידני וגם אוטומטי בתום הזמן) ---------------- */
+  function registerMiss({ auto } = {}) {
     if (state.roundLocked) return;
+    stopTurnTimer();
     const missedIdx = state.turnIndex;
     state.misses[missedIdx] += 1;
     renderMissDots();
@@ -580,18 +653,23 @@
       const winnerIdx = missedIdx === 0 ? 1 : 0;
       state.players[winnerIdx].score += 1;
       updateScoreDisplay(winnerIdx, true);
+      const reasonText = auto ? 'לא הגיב/ה בזמן (10 שניות)' : 'פספס/ה';
       endRound({
         type: 'lost',
-        message: `❌ ${state.players[missedIdx].name} פספס/ה פעמיים! הנקודה עוברת ל-${state.players[winnerIdx].name}. התשובה: ${state.currentItem.answer}`,
+        message: `❌ ${state.players[missedIdx].name} ${reasonText} פעמיים! הנקודה עוברת ל-${state.players[winnerIdx].name}. התשובה: ${state.currentItem.answer}`,
       });
     } else {
       state.turnIndex = missedIdx === 0 ? 1 : 0;
       renderTurnHighlight();
+      startTurnTimer();
     }
-  });
+  }
+
+  el.btnMiss.addEventListener('click', () => registerMiss({ auto: false }));
 
   /* ---------------- סיום סיבוב עם באנר ---------------- */
   function endRound({ type, message }) {
+    stopTurnTimer();
     state.roundLocked = true;
     setControlsEnabled(false);
 
@@ -621,16 +699,48 @@
 
   /* ---------------- איפוס המשחק ---------------- */
   el.btnReset.addEventListener('click', () => {
+    stopTurnTimer();
     state.players[0].score = 0;
     state.players[1].score = 0;
     state.roundCount = 0;
     state.previousItem = null;
+    state.usedItems = {};
 
     el.startForm.reset();
     clearError();
 
+    el.winnerOverlay.classList.add('hidden');
     el.gameScreen.classList.add('hidden');
     el.startScreen.classList.remove('hidden');
+  });
+
+  /* ---------------- הכרזת מנצח ---------------- */
+  el.btnDeclareWinner.addEventListener('click', () => {
+    stopTurnTimer();
+    const [p1, p2] = state.players;
+    let title, sub;
+    if (p1.score === p2.score) {
+      title = '🤝 תיקו!';
+      sub = `${p1.name} ו-${p2.name} סיימו עם ${p1.score} נקודות כל אחד`;
+    } else {
+      const winner = p1.score > p2.score ? p1 : p2;
+      const loser = p1.score > p2.score ? p2 : p1;
+      title = `🏆 והזוכה הוא: ${winner.name}!`;
+      sub = `${winner.score} נקודות מול ${loser.score} של ${loser.name}`;
+    }
+    el.winnerTitle.textContent = title;
+    el.winnerSub.textContent = sub;
+    el.winnerOverlay.classList.remove('hidden');
+  });
+
+  el.btnWinnerClose.addEventListener('click', () => {
+    el.winnerOverlay.classList.add('hidden');
+    if (!state.roundLocked) startTurnTimer();
+  });
+
+  el.btnWinnerNewGame.addEventListener('click', () => {
+    el.winnerOverlay.classList.add('hidden');
+    el.btnReset.click();
   });
 
   /* ---------------- אתחול ---------------- */

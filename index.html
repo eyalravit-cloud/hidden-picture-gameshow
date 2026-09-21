@@ -87,6 +87,7 @@
         <div class="tv-frame">
           <div class="tv-brand-dot"></div>
           <div class="tv-screen" id="tv-screen">
+            <div class="turn-timer" id="turn-timer">10</div>
             <div class="round-stage" id="round-stage">
               <div class="item-emoji" id="item-emoji">🎬</div>
               <img class="item-image hidden" id="item-image" alt="תמונת הסיבוב הנוכחי" />
@@ -123,6 +124,7 @@
       <button id="btn-manage-custom" class="btn btn-secondary">🖼️ העלאה זמנית</button>
       <button id="btn-refresh-folders-game" class="btn btn-secondary">🔄 רענן קטגוריות</button>
       <select id="category-select" class="category-select"></select>
+      <button id="btn-declare-winner" class="btn btn-primary">🏆 והזוכה הוא</button>
       <button id="btn-reset" class="btn btn-danger">⟲ איפוס משחק</button>
     </footer>
   </div>
@@ -151,6 +153,19 @@
 
       <button type="button" id="btn-save-custom" class="btn btn-primary">שמור קטגוריה</button>
       <p id="custom-error" class="start-error hidden"></p>
+    </div>
+  </div>
+
+  <!-- ===================== הכרזת מנצח ===================== -->
+  <div id="winner-overlay" class="modal-overlay hidden">
+    <div class="modal-card glass winner-card">
+      <div class="winner-trophy">🏆</div>
+      <h2 id="winner-title" class="winner-title">והזוכה הוא...</h2>
+      <p id="winner-sub" class="winner-sub"></p>
+      <div class="winner-actions">
+        <button type="button" id="btn-winner-newgame" class="btn btn-primary">🔁 משחק חדש</button>
+        <button type="button" id="btn-winner-close" class="btn btn-secondary">המשך משחק</button>
+      </div>
     </div>
   </div>
 
