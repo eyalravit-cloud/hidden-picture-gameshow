@@ -15,6 +15,18 @@
 (() => {
   'use strict';
 
+  /* ---------------- הודעת "טוסט" קצרה (הצלחה/שגיאה) ---------------- */
+  let toastTimeout = null;
+  function showToast(message, isError = false) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.toggle('toast-error', isError);
+    toast.classList.remove('hidden');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.add('hidden'), 5000);
+  }
+
   /* ---------------- מאגר קטגוריות (אמוג'י + תשובה בעברית) ---------------- */
   const CATEGORIES = {
     fruits: {
@@ -88,7 +100,7 @@
   };
 
   const MAX_MISSES = 2;
-  const TURN_SECONDS = 10;
+  const TURN_SECONDS = 15;
 
   /* ---------------- הגדרות לטעינת קטגוריות מתיקיית images/ בריפו ---------------- */
   const REMOTE_REPO = { owner: 'eyalravit-cloud', repo: 'hidden-picture-gameshow', branch: 'main', imagesPath: 'images' };
@@ -258,9 +270,12 @@
     return res.json();
   }
 
-  async function loadFolderCategories() {
-    const base = `https://api.github.com/repos/${REMOTE_REPO.owner}/${REMOTE_REPO.repo}/contents/${REMOTE_REPO.imagesPath}`;
-
+  /**
+   * טוענת את כל עץ הקבצים של הריפו בבקשה אחת בלבד (Git Trees API עם recursive=1),
+   * במקום בקשה נפרדת לכל תיקיית קטגוריה. כך המכסה השעתית של GitHub (60 בקשות ל-IP)
+   * לא נחצית בקלות גם כשיש הרבה קטגוריות/תמונות או ריענון תכוף.
+   */
+  async function loadFolderCategories(userTriggered = false) {
     // מנקים קטגוריות תיקייה קודמות (למקרה שתיקייה נמחקה בינתיים),
     // ומחזירים קטגוריות מובנות שהוחלפו בעבר לגרסת האמוג'י המקורית שלהן.
     Object.keys(CATEGORIES).forEach((key) => {
@@ -268,49 +283,61 @@
     });
     Object.assign(CATEGORIES, JSON.parse(JSON.stringify(BUILTIN_CATEGORIES_SNAPSHOT)));
 
-    let dirs = [];
+    let tree = [];
     try {
-      const rootEntries = await fetchJson(`${base}?ref=${REMOTE_REPO.branch}`);
-      dirs = Array.isArray(rootEntries) ? rootEntries.filter((e) => e.type === 'dir') : [];
+      const treeUrl = `https://api.github.com/repos/${REMOTE_REPO.owner}/${REMOTE_REPO.repo}/git/trees/${REMOTE_REPO.branch}?recursive=1`;
+      const data = await fetchJson(treeUrl);
+      tree = Array.isArray(data.tree) ? data.tree : [];
     } catch (err) {
       console.warn('לא ניתן היה לטעון קטגוריות מהתיקייה images/:', err);
+      showToast('לא ניתן לטעון תמונות מ-GitHub כרגע (יתכן וחצינו את מכסת הבקשות השעתית). נסו לרענן שוב בעוד כמה דקות.', true);
+      buildCategoryPicker();
+      return;
     }
 
-    await Promise.all(
-      dirs.map(async (dir) => {
-        try {
-          const files = await fetchJson(`${base}/${encodeURIComponent(dir.name)}?ref=${REMOTE_REPO.branch}`);
-          const items = (Array.isArray(files) ? files : [])
-            .filter((f) => f.type === 'file' && IMAGE_EXT_REGEX.test(f.name))
-            .map((f) => ({
-              imageUrl: f.download_url,
-              answer: f.name
-                .replace(IMAGE_EXT_REGEX, '')
-                .replace(/[-_]+/g, ' ')
-                .replace(/\s*\(?\d+\)?\s*$/, '') // מסיר מספר סידורי בסוף שם הקובץ (למשל "אגס 15" -> "אגס")
-                .trim(),
-            }))
-            .filter((it) => it.answer);
+    const imagesPrefix = `${REMOTE_REPO.imagesPath}/`;
+    const byFolder = {};
+    tree.forEach((entry) => {
+      if (entry.type !== 'blob' || !entry.path.startsWith(imagesPrefix)) return;
+      const rest = entry.path.slice(imagesPrefix.length); // למשל "פירות/תפוח.jpg"
+      const slashIdx = rest.indexOf('/');
+      if (slashIdx === -1) return; // קובץ ישירות תחת images/ (כמו README.md) - לא רלוונטי
+      const folderName = rest.slice(0, slashIdx);
+      const fileName = rest.slice(slashIdx + 1);
+      if (!fileName || fileName.includes('/') || !IMAGE_EXT_REGEX.test(fileName)) return;
+      (byFolder[folderName] = byFolder[folderName] || []).push(fileName);
+    });
 
-          if (items.length < 2) return;
+    Object.entries(byFolder).forEach(([folderName, fileNames]) => {
+      const items = fileNames
+        .map((fileName) => {
+          const encodedPath = ['images', folderName, fileName].map(encodeURIComponent).join('/');
+          return {
+            imageUrl: `https://raw.githubusercontent.com/${REMOTE_REPO.owner}/${REMOTE_REPO.repo}/${REMOTE_REPO.branch}/${encodedPath}`,
+            answer: fileName
+              .replace(IMAGE_EXT_REGEX, '')
+              .replace(/[-_]+/g, ' ')
+              .replace(/\s*\(?\d+\)?\s*$/, '') // מסיר מספר סידורי בסוף שם הקובץ (למשל "אגס 15" -> "אגס")
+              .trim(),
+          };
+        })
+        .filter((it) => it.answer);
 
-          // אם שם התיקייה תואם לקטגוריה מובנית (למשל "פירות") - מחליפים
-          // את התמונות שלה בתמונות האמיתיות במקום ליצור אריח כפול.
-          const matchingBuiltinKey = BUILTIN_NAME_TO_KEY[dir.name];
-          if (matchingBuiltinKey) {
-            CATEGORIES[matchingBuiltinKey] = {
-              name: dir.name,
-              emoji: CATEGORIES[matchingBuiltinKey].emoji,
-              items,
-            };
-          } else {
-            CATEGORIES[`folder:${dir.name}`] = { name: dir.name, emoji: '📁', items };
-          }
-        } catch (err) {
-          console.warn(`לא ניתן היה לטעון את תיקיית הקטגוריה "${dir.name}":`, err);
-        }
-      })
-    );
+      if (items.length < 2) return;
+
+      // אם שם התיקייה תואם לקטגוריה מובנית (למשל "פירות") - מחליפים
+      // את התמונות שלה בתמונות האמיתיות במקום ליצור אריח כפול.
+      const matchingBuiltinKey = BUILTIN_NAME_TO_KEY[folderName];
+      if (matchingBuiltinKey) {
+        CATEGORIES[matchingBuiltinKey] = {
+          name: folderName,
+          emoji: CATEGORIES[matchingBuiltinKey].emoji,
+          items,
+        };
+      } else {
+        CATEGORIES[`folder:${folderName}`] = { name: folderName, emoji: '📁', items };
+      }
+    });
 
     buildCategoryPicker();
     if (isGameRunning()) {
@@ -318,10 +345,11 @@
       buildCategorySelect();
       if (CATEGORIES[prevValue]) el.categorySelect.value = prevValue;
     }
+    if (userTriggered) showToast('✅ הקטגוריות עודכנו בהצלחה');
   }
 
-  el.btnRefreshFoldersStart?.addEventListener('click', () => loadFolderCategories());
-  el.btnRefreshFoldersGame?.addEventListener('click', () => loadFolderCategories());
+  el.btnRefreshFoldersStart?.addEventListener('click', () => loadFolderCategories(true));
+  el.btnRefreshFoldersGame?.addEventListener('click', () => loadFolderCategories(true));
 
   /** מסנכרן את CATEGORIES.custom עם state.customItems הנוכחי. */
   function refreshCustomCategory() {
@@ -516,13 +544,10 @@
   function pickRandomItem() {
     const items = CATEGORIES[state.categoryKey].items;
     const used = getUsedSet(state.categoryKey);
-    let available = items.filter((it) => !used.has(it.answer));
+    const available = items.filter((it) => !used.has(it.answer));
 
-    if (available.length === 0) {
-      // כל התמונות בקטגוריה כבר הוצגו - פותחים סבב חדש מההתחלה
-      used.clear();
-      available = items;
-    }
+    // כל התמונות בקטגוריה כבר הוצגו - אין מחזור נוסף, יש להכריז על מנצח.
+    if (available.length === 0) return null;
 
     if (available.length === 1) return available[0];
 
@@ -634,9 +659,16 @@
 
   /* ---------------- התחלת סיבוב חדש ---------------- */
   function startNewRound({ resetTurn }) {
+    const nextItem = pickRandomItem();
+    if (!nextItem) {
+      // אין יותר תמונות בקטגוריה שלא הוצגו - המשחק מסתיים ומוכרז מנצח.
+      declareFinalWinner();
+      return;
+    }
+
     state.roundLocked = false;
     state.misses = [0, 0];
-    state.currentItem = pickRandomItem();
+    state.currentItem = nextItem;
     getUsedSet(state.categoryKey).add(state.currentItem.answer);
     state.previousItem = state.currentItem;
 
@@ -801,22 +833,42 @@
   });
 
   /* ---------------- הכרזת מנצח ---------------- */
-  el.btnDeclareWinner.addEventListener('click', () => {
-    stopTurnTimer();
+  /** בונה את כותרת/תת-כותרת הכרזת המנצח לפי הניקוד הנוכחי. */
+  function buildWinnerMessage() {
     const [p1, p2] = state.players;
-    let title, sub;
     if (p1.score === p2.score) {
-      title = '🤝 תיקו!';
-      sub = `${p1.name} ו-${p2.name} סיימו עם ${p1.score} נקודות כל אחד`;
-    } else {
-      const winner = p1.score > p2.score ? p1 : p2;
-      const loser = p1.score > p2.score ? p2 : p1;
-      title = `🏆 והזוכה הוא: ${winner.name}!`;
-      sub = `${winner.score} נקודות מול ${loser.score} של ${loser.name}`;
+      return { title: '🤝 תיקו!', sub: `${p1.name} ו-${p2.name} סיימו עם ${p1.score} נקודות כל אחד` };
     }
+    const winner = p1.score > p2.score ? p1 : p2;
+    const loser = p1.score > p2.score ? p2 : p1;
+    return {
+      title: `🏆 והזוכה הוא: ${winner.name}!`,
+      sub: `${winner.score} נקודות מול ${loser.score} של ${loser.name}`,
+    };
+  }
+
+  /**
+   * מציג את מודל הכרזת המנצח. כאשר allowContinue הוא false (למשל כשנגמרו
+   * התמונות בקטגוריה) מוסתר כפתור "המשך משחק" כי אין עוד סבבים אפשריים.
+   */
+  function showWinnerOverlay({ allowContinue }) {
+    const { title, sub } = buildWinnerMessage();
     el.winnerTitle.textContent = title;
     el.winnerSub.textContent = sub;
+    el.btnWinnerClose.classList.toggle('hidden', !allowContinue);
     el.winnerOverlay.classList.remove('hidden');
+  }
+
+  /** מכריזה סופית על מנצח כי כל התמונות בקטגוריה כבר הוצגו - אין המשך אפשרי. */
+  function declareFinalWinner() {
+    stopTurnTimer();
+    setControlsEnabled(false);
+    showWinnerOverlay({ allowContinue: false });
+  }
+
+  el.btnDeclareWinner.addEventListener('click', () => {
+    stopTurnTimer();
+    showWinnerOverlay({ allowContinue: true });
   });
 
   el.btnWinnerClose.addEventListener('click', () => {

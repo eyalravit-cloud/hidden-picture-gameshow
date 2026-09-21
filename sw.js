@@ -1,6 +1,6 @@
 // Service worker בסיסי: מאפשר התקנה למסך הבית ופתיחה מהירה גם עם רשת חלשה.
 // לא שומר תמונות שהועלו לתיקיות (אלה נטענות תמיד מרשת כדי לקבל עדכונים).
-const CACHE_NAME = "gameshow-shell-v2";
+const CACHE_NAME = "gameshow-shell-v3";
 const SHELL_FILES = [
   "./",
   "./index.html",
