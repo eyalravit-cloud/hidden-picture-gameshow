@@ -92,6 +92,14 @@
   /* ---------------- הגדרות לטעינת קטגוריות מתיקיית images/ בריפו ---------------- */
   const REMOTE_REPO = { owner: 'eyalravit-cloud', repo: 'hidden-picture-gameshow', branch: 'main', imagesPath: 'images' };
   const IMAGE_EXT_REGEX = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+  // תמונת מצב של הקטגוריות המובנות (אמוג'י) כפי שהוגדרו מראש, כדי
+  // שנוכל לשחזר אותן אם תיקיית תמונות תוסר בהמשך.
+  const BUILTIN_CATEGORIES_SNAPSHOT = JSON.parse(JSON.stringify(CATEGORIES));
+  // מיפוי שם תצוגה -> מפתח קטגוריה מובנית, כדי שתיקייה בשם "פירות" תחליף
+  // את קטגוריית האמוג'י "פירות" ולא תיצור אריח כפול.
+  const BUILTIN_NAME_TO_KEY = Object.fromEntries(
+    Object.entries(CATEGORIES).map(([key, cat]) => [cat.name, key])
+  );
 
   /* ---------------- מצב המשחק ---------------- */
   const state = {
@@ -229,10 +237,12 @@
   async function loadFolderCategories() {
     const base = `https://api.github.com/repos/${REMOTE_REPO.owner}/${REMOTE_REPO.repo}/contents/${REMOTE_REPO.imagesPath}`;
 
-    // מנקים קטגוריות תיקייה קודמות (למקרה שתיקייה נמחקה בינתיים).
+    // מנקים קטגוריות תיקייה קודמות (למקרה שתיקייה נמחקה בינתיים),
+    // ומחזירים קטגוריות מובנות שהוחלפו בעבר לגרסת האמוג'י המקורית שלהן.
     Object.keys(CATEGORIES).forEach((key) => {
       if (key.startsWith('folder:')) delete CATEGORIES[key];
     });
+    Object.assign(CATEGORIES, JSON.parse(JSON.stringify(BUILTIN_CATEGORIES_SNAPSHOT)));
 
     let dirs = [];
     try {
@@ -254,7 +264,18 @@
             }))
             .filter((it) => it.answer);
 
-          if (items.length >= 2) {
+          if (items.length < 2) return;
+
+          // אם שם התיקייה תואם לקטגוריה מובנית (למשל "פירות") - מחליפים
+          // את התמונות שלה בתמונות האמיתיות במקום ליצור אריח כפול.
+          const matchingBuiltinKey = BUILTIN_NAME_TO_KEY[dir.name];
+          if (matchingBuiltinKey) {
+            CATEGORIES[matchingBuiltinKey] = {
+              name: dir.name,
+              emoji: CATEGORIES[matchingBuiltinKey].emoji,
+              items,
+            };
+          } else {
             CATEGORIES[`folder:${dir.name}`] = { name: dir.name, emoji: '📁', items };
           }
         } catch (err) {
