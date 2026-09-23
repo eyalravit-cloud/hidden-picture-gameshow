@@ -697,8 +697,7 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
 .turn-timer {
   position: absolute;
   top: 0.8rem;
-  right: 50%;
-  transform: translateX(50%);
+  right: 0.6rem;
   z-index: 6;
   width: 88px;
   height: 88px;
