@@ -529,6 +529,7 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
 
 /* ---------------- מסך הטלוויזיה ---------------- */
 .tv-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -696,8 +697,8 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
 /* ---------------- שעון עצר לתור ---------------- */
 .turn-timer {
   position: absolute;
-  top: 0.8rem;
-  right: 0.6rem;
+  top: -0.6rem;
+  right: -1.6rem;
   z-index: 6;
   width: 88px;
   height: 88px;
@@ -844,7 +845,7 @@ input::placeholder { color: rgba(238, 241, 255, 0.35); }
 
   .category-badge { font-size: 0.75rem; padding: 0.3rem 0.8rem; }
   .game-logo { font-size: 1.25rem; }
-  .turn-timer { width: 68px; height: 68px; top: 0.5rem; }
+  .turn-timer { width: 68px; height: 68px; top: 0.3rem; right: -0.4rem; }
   .timer-number { font-size: 1.5rem; }
   .winner-card { padding: 1.6rem 1.2rem; }
   .winner-trophy { font-size: 3.2rem; }
